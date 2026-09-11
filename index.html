@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Studio Tracking</title>
+<style>
+  :root {
+    --purple: #9647FF; --blue: #475CFF;
+    --ink: #1d1c24; --paper: #fafafc; --panel: #ffffff; --line: #e6e4ee;
+    --muted: #6e6c7e; --faint: #94929f; --tint: #f5edff;
+    --good: #1f9d61; --warn: #c77d00; --bad: #c8453c; --teal: #0e8a87;
+    --shadow: 0 1px 3px rgba(29,28,36,.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #eceaf2; --paper: #17161c; --panel: #201f27; --line: #33323d;
+      --muted: #a5a3b2; --faint: #75737f; --tint: #2b2140;
+      --good: #3cc98a; --warn: #e6a23c; --bad: #e5736a; --teal: #3ec2be;
+      --shadow: 0 1px 3px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 64px; }
+
+  header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 6px; }
+  .brand { font-size: 13px; font-weight: 700; letter-spacing: .18em; color: var(--purple); }
+  h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .livechip { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; padding: 3px 11px; border-radius: 999px; }
+  .livechip.on { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+  .livechip.off { background: color-mix(in srgb, var(--faint) 16%, transparent); color: var(--muted); }
+  .sub { color: var(--muted); margin: 2px 0 6px; max-width: 78ch; }
+  .updated { color: var(--faint); font-size: 12px; margin: 0 0 18px; }
+  .banner { display: none; background: color-mix(in srgb, var(--warn) 12%, var(--panel));
+    border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+    border-radius: 10px; padding: 10px 16px; font-size: 13.5px; margin: 0 0 18px; }
+  .banner.show { display: block; }
+
+  .tabbar { display: flex; gap: 4px; margin: 14px 0 24px; border-bottom: 1px solid var(--line); }
+  .tabbar button {
+    font: inherit; font-size: 14px; font-weight: 600; color: var(--muted);
+    background: none; border: none; border-bottom: 2.5px solid transparent;
+    padding: 8px 16px; margin-bottom: -1px; cursor: pointer;
+  }
+  .tabbar button.active { color: var(--purple); border-bottom-color: var(--purple); }
+  .tabbar button:focus-visible { outline: 2px solid var(--purple); outline-offset: -2px; }
+
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-bottom: 26px; }
+  .rule { background: var(--tint); border-radius: 10px; padding: 12px 16px; }
+  .rule b { display: block; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--purple); margin-bottom: 3px; }
+  .rule span { font-size: 13.5px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 30px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; box-shadow: var(--shadow); }
+  .kpi .n { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .kpi .n.accent { color: var(--purple); }
+  .kpi .l { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .kpi .src { font-size: 11px; color: var(--faint); margin-top: 6px; }
+
+  h2 { font-size: 17px; margin: 34px 0 4px; }
+  .note { color: var(--muted); font-size: 13px; margin: 0 0 12px; max-width: 92ch; }
+  .note a, .updated a { color: var(--purple); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--tint); color: var(--purple); font-weight: 600; white-space: nowrap; }
+  .chip.em { color: var(--blue); }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; }
+  th { text-align: left; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 600; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  .kw { font-size: 12px; color: var(--muted); }
+  a.reclink { color: var(--purple); text-decoration: none; font-weight: 600; }
+  a.reclink:hover { text-decoration: underline; }
+
+  .stage { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .s-hot { background: color-mix(in srgb, var(--purple) 15%, transparent); color: var(--purple); }
+  .s-def { background: color-mix(in srgb, var(--faint) 16%, transparent); color: var(--muted); }
+
+  #leader tbody tr:first-child td { background: color-mix(in srgb, var(--tint) 55%, transparent); }
+
+  /* hover breakdown on counts */
+  .cnt { position: relative; cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }
+  .cnt .tipbox {
+    display: none; position: absolute; right: 0; top: calc(100% + 4px); z-index: 30;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(29,28,36,.18); padding: 8px 12px;
+    min-width: 240px; max-width: 340px; text-align: left;
+    font-size: 12px; font-weight: 400; line-height: 1.45; color: var(--ink); white-space: normal;
+  }
+  .cnt .tipbox.left { left: 0; right: auto; }
+  .cnt:hover .tipbox, .cnt:focus .tipbox, .cnt:focus-within .tipbox { display: block; }
+  .tipitem { padding: 2px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+  .tipitem:last-child { border-bottom: none; }
+  .tiphead { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding-bottom: 4px; }
+  .defs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 24px; }
+  .empty { padding: 18px 16px; color: var(--faint); font-size: 13px; }
+  footer { margin-top: 40px; color: var(--faint); font-size: 12px; max-width: 92ch; }
+  .bar { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--purple), var(--blue)); }
+  .barbg { background: var(--line); border-radius: 4px; min-width: 60px; }
+  button.ghost { font: inherit; font-size: 13px; font-weight: 600; color: var(--purple); background: transparent; border: 1px solid var(--purple); border-radius: 7px; padding: 5px 14px; cursor: pointer; }
+  button.ghost:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="brand">BAYZAT STUDIO</span>
+    <h1>Studio Tracking</h1>
+    <span class="livechip off" id="liveChip">LOADING…</span>
+    <span style="flex:1"></span>
+    <button class="ghost" id="refreshBtn">Refresh now</button>
+  </header>
+  <div class="banner" id="banner"></div>
+
+  <nav class="tabbar" role="tablist">
+    <button id="tabBtnDash" class="active" role="tab" aria-selected="true">CSM x EM Incentive Tracker</button>
+    <button id="tabBtnOrg" role="tab" aria-selected="false">Entire Sales Org Tracker</button>
+    <button id="tabBtnSummary" role="tab" aria-selected="false">Summary</button>
+  </nav>
+
+  <section id="tabSummary" hidden>
+    <p class="sub">Tracks how Customer Success Managers surface Bayzat Studio demand for the Expansion Team. Pods share 20% on conversion; CSMs qualify by proactively setting EM meetings. Data refreshes automatically every minute from the shared Salesforce/Grain import.</p>
+    <p class="updated" id="updatedLine">Loading data…</p>
+
+    <h2 style="margin-top:24px">EM × CS pods</h2>
+    <p class="note">Accounts are worked collaboratively inside pods — each Expansion Manager with their CSMs.</p>
+    <div class="rules" id="podCards"></div>
+
+    <div class="rules">
+      <div class="rule"><b>Pod model</b><span>EMs and CSMs work in existing pods; a 20% share is offered on pod conversions.</span></div>
+      <div class="rule"><b>CSM role</b><span>Proactively identify Studio demand and set meetings for the pod's EM.</span></div>
+      <div class="rule"><b>Q3 target</b><span>Minimum 5 Studio conversions closed in Q3 to qualify.</span></div>
+      <div class="rule"><b>Top performer</b><span>Most Bayzat Studio deals won in Q3 moves up one commission band. Prize: TBA.</span></div>
+    </div>
+  </section>
+
+  <section id="tabDash">
+  <div class="kpis">
+    <div class="kpi"><div class="n accent" id="kpiOpps">–</div><div class="l">Studio opportunities created</div><div class="src" id="kpiOppsSrc">Tab: MCP with Bayzat Studio_v2</div></div>
+    <div class="kpi"><div class="n accent" id="kpiS5">–</div><div class="l">Opps at Stage 5+</div><div class="src">The metric that decides the leaderboard</div></div>
+    <div class="kpi"><div class="n accent" id="kpiMeet">–</div><div class="l">Grain meetings with Studio Mention</div><div class="src">Tab: CS EM SPIFF – Grain Meetings Studio</div></div>
+    <div class="kpi"><div class="n accent" id="kpiRev" style="font-size:26px;padding-top:6px">–</div><div class="l">Bayzat Studio revenue (AED)</div><div class="src">Custom Development + Studio Standard + Studio Advanced product lines</div></div>
+    <div class="kpi"><div class="n" id="kpiWon">–</div><div class="l">Stage 5+ vs Q3 target of 5</div><div class="barbg" style="margin-top:8px"><div class="bar" id="wonBar" style="width:0%"></div></div></div>
+  </div>
+
+  <h2>CSM Leaderboard — Collaboration</h2>
+  <p class="note">Pod collaboration only — opp counts come from the “MCP with Bayzat Studio_v2” report (opportunities split with an EM). Ranked by <b>Stage 5 opps</b> — one Stage 5 opportunity outranks any number of opps created or Grain mentions.</p>
+  <div class="panel">
+    <div class="tablewrap"><table id="leader">
+      <thead><tr><th style="width:26%">CSM</th><th style="width:18%">Pod (EM)</th><th style="text-align:right;width:18%">Opps created</th><th style="text-align:right;width:18%">Stage 5 opps</th><th style="text-align:right;width:20%">Studio mentions (Grain)</th></tr></thead>
+      <tbody><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <h2>SPIFF Leaderboard</h2>
+  <p class="note" id="spiffNote">CSMs only — opportunities created, and deals won with an EM split vs. won solo (no EM split).</p>
+  <div class="panel">
+    <div class="tablewrap"><table id="spiffLeader">
+      <thead><tr><th style="width:30%">CSM</th><th style="width:16%">Pod (EM)</th><th style="text-align:right;width:18%">Opps created</th><th style="text-align:right;width:18%">Won (EM split)</th><th style="text-align:right;width:18%">Won Solo (no EM split)</th></tr></thead>
+      <tbody><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <h2>CSM — Bayzat Studio Opportunities Closed (No EM)</h2>
+  <p class="note" id="noEmNote">Opportunities created and closed this fiscal quarter by a CSM alone — no split with an Expansion Manager.</p>
+  <div class="panel">
+    <div class="tablewrap"><table id="noEmTable">
+      <thead><tr><th style="width:28%">Opportunity</th><th style="width:15%">CSM</th><th style="width:19%">Account</th><th style="width:15%">Product</th><th style="text-align:right;width:12%">Total (AED)</th><th style="width:11%">Close date</th></tr></thead>
+      <tbody><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <h2>Feature leaderboard — what's being discussed, and by whom</h2>
+  <p class="note">Studio features detected in Grain meeting summaries, with the people driving each conversation (EMs marked in blue). Counts are meetings mentioning the feature — a meeting can mention several.</p>
+  <div class="panel">
+    <div class="tablewrap"><table id="featLeader">
+      <thead><tr><th style="width:22%">Feature</th><th style="text-align:right;width:14%">Meetings</th><th>Discussed by</th></tr></thead>
+      <tbody><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <h2>Studio opportunities</h2>
+  <p class="note" id="oppsNote">All opportunities created with a Bayzat Studio product.</p>
+  <div class="panel">
+    <div class="tablewrap"><table id="oppsTable">
+      <thead></thead>
+      <tbody><tr><td class="empty">Loading…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <h2>Grain meetings with Studio Mention</h2>
+  <p class="note">Every meeting where Bayzat Studio came up, newest first, with a link to the recording.</p>
+  <div class="panel">
+    <div class="tablewrap"><table id="meetTable">
+      <thead><tr><th style="width:9%">Date</th><th style="width:20%">Account</th><th style="width:27%">Meeting</th><th style="width:16%">Led by</th><th>Features detected</th><th style="width:9%"></th></tr></thead>
+      <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    </table></div>
+  </div>
+
+  </section>
+
+  <section id="tabOrg" hidden>
+    <h2 style="margin-top:0">Bayzat Studio Leaderboard</h2>
+    <p class="note">Entire sales organisation — KSA &amp; UAE: New Business, CS and EM. Same rules as the SPIFF board: <b>deal won = opportunity at Stage 5 carrying Bayzat Studio Standard or Advanced</b>. Team is taken from the pod roster; anyone in the data outside it is shown as New Business / Other.</p>
+    <div class="panel">
+      <div class="tablewrap"><table id="orgLeader">
+        <thead><tr><th style="width:26%">Person</th><th style="width:16%">Team</th><th style="text-align:right;width:14%">Opps created</th><th style="text-align:right;width:15%">Won (EM split)</th><th style="text-align:right;width:15%">Won Solo (no EM split)</th><th style="text-align:right;width:14%">Grain meetings</th></tr></thead>
+        <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <h2>Feature leaderboard — what's being discussed, and by whom</h2>
+    <p class="note">Studio features detected in Grain meeting summaries across the whole organisation, with the people driving each conversation (EMs marked in blue).</p>
+    <div class="panel">
+      <div class="tablewrap"><table id="orgFeat">
+        <thead><tr><th style="width:22%">Feature</th><th style="text-align:right;width:14%">Meetings</th><th>Discussed by</th></tr></thead>
+        <tbody><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <h2>Studio opportunities</h2>
+    <p class="note" id="orgOppsNote">All opportunities meeting the Studio criteria.</p>
+    <div class="panel">
+      <div class="tablewrap"><table id="orgOpps">
+        <thead></thead>
+        <tbody><tr><td class="empty">Loading…</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <h2>Grain meetings with Studio Mention</h2>
+    <p class="note">Every meeting where Bayzat Studio came up, newest first, with a link to the recording.</p>
+    <div class="panel">
+      <div class="tablewrap"><table id="orgMeet">
+        <thead><tr><th style="width:9%">Date</th><th style="width:20%">Account</th><th style="width:27%">Meeting</th><th style="width:16%">Led by</th><th>Features detected</th><th style="width:9%"></th></tr></thead>
+        <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <footer>
+    Data source: the shared Google Sheet (Salesforce import + Grain meetings), published as CSV and fetched directly by this page — no sign-in required. The page re-fetches every 60 seconds while open. Feature detection scans each meeting's Grain summary for Studio keywords (workflows, service desk, tickets, apps, integrations, custom builds). "Stage 5" counts opportunities whose stage is 5 or later.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQwzVI1lYrIf0_FjfLc6Dn6NQ_Zg-Xr3UPVC8ellQ21NMNX-kDjUDXLDwtWKlJFqwbINeqKZM7fy1F7/pub";
+  const MEET_URL = BASE + "?gid=2104172558&single=true&output=csv";
+  const OPPS_URL = BASE + "?gid=512924415&single=true&output=csv";   // MCP with Bayzat Studio_v2 — split opps
+  const SOLO_URL = BASE + "?gid=141742239&single=true&output=csv";   // MCP with Bayzat studio_v1 — CS-created, no EM split, this FQ
+  const ORG_OPPS_URL = BASE + "?gid=1291297995&single=true&output=csv"; // org-wide opportunity splits — all roles, KSA & UAE
+  const ORG_MEET_URL = BASE + "?gid=315042725&single=true&output=csv";  // org-wide Grain meetings — all roles
+  const REFRESH_MS = 60000;
+
+  const PODS = [
+    { em: "Huzaifa Ghori", csms: ["Kerolos Mehany","Yohann Allen","Syed Rahan","Sherbano Khanzada","Sherine Salem"] },
+    { em: "Sulieman Hammoudan", csms: ["Daria Maksimova","Haytham Ghali","Nathan Philip Saldanha","Yasser Raouf","Delight Pereira"] },
+    { em: "Shahd Shream", csms: ["Divine Pereira","Ali Tarek","Khalid Ibrahim","Sara Ali Abdelaziz","Nada Kirah","Ibrahim Amin"] },
+  ];
+  const CSMS = PODS.flatMap(p=>p.csms);
+  const EMS = PODS.map(p=>p.em);
+  const podOf = {};
+  PODS.forEach(p=>p.csms.forEach(c=>podOf[c]=p.em));
+
+  // Known spelling variants in the Salesforce/Grain import
+  const ALIASES = {
+    "divine savia pereira": "Divine Pereira",
+    "shahd shream": "Shahd Shream",
+    "shaad ishream dassah": "Shahd Shream",
+  };
+  const ROSTER = CSMS.concat(EMS);
+  function normalizeName(raw){
+    if(!raw) return "";
+    const s = String(raw).trim();
+    const key = s.toLowerCase();
+    if (ALIASES[key]) return ALIASES[key];
+    const exact = ROSTER.find(n=>n.toLowerCase()===key);
+    if (exact) return exact;
+    const parts = key.split(/\s+/);
+    const first = parts[0], last = parts[parts.length-1];
+    if (parts.length === 1){
+      // single-word input ("Omer") — safe to match on first name alone if unique
+      const matches = ROSTER.filter(n=>n.toLowerCase().split(/\s+/)[0]===first);
+      if (matches.length===1) return matches[0];
+    } else {
+      // multi-word input must agree on BOTH first and last name — a shared first
+      // name alone ("Khalid Higazy" vs "Khalid Ibrahim") must NOT be folded together
+      const matches = ROSTER.filter(n=>{
+        const np = n.toLowerCase().split(/\s+/);
+        return np[0]===first && np[np.length-1]===last;
+      });
+      if (matches.length===1) return matches[0];
+    }
+    return s; // unknown person — keep as written
+  }
+
+  const FEATURES = [
+    { label: "Bayzat Studio", re: /\bstudio\b/i },
+    { label: "Workflows", re: /workflow/i },
+    { label: "Service Desk", re: /service\s*desk/i },
+    { label: "Tickets", re: /ticket/i },
+    { label: "Integrations", re: /integrat/i },
+    { label: "Bayzat Apps", re: /bayzat\s*app|app\s*builder/i },
+    { label: "Custom build", re: /custom\s*(build|development|dev|solution)/i },
+    { label: "Automation", re: /automat/i },
+  ];
+
+  function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  // A count with a hover breakdown of what's included in it
+  function tipCell(v, names, opts){
+    const { head = "", left = false } = opts || {};
+    if (!names || !names.length) return String(v);
+    const items = names.slice(0, 20).map(n=>`<div class="tipitem">${esc(n)}</div>`).join("")
+      + (names.length > 20 ? `<div class="tipitem" style="color:var(--faint)">+${names.length-20} more</div>` : "");
+    return `<span class="cnt" tabindex="0">${v}<span class="tipbox${left?" left":""}">${head?`<div class="tiphead">${esc(head)}</div>`:""}${items}</span></span>`;
+  }
+
+  function parseCSV(text){
+    const rows=[]; let row=[], cell="", q=false;
+    for(let i=0;i<text.length;i++){
+      const ch=text[i];
+      if(q){ if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=ch; }
+      else if(ch==='"') q=true;
+      else if(ch===','){ row.push(cell); cell=""; }
+      else if(ch==='\n'){ row.push(cell.replace(/\r$/,"")); rows.push(row); row=[]; cell=""; }
+      else cell+=ch;
+    }
+    if(cell.length||row.length){ row.push(cell.replace(/\r$/,"")); rows.push(row); }
+    return rows;
+  }
+
+  function findHeaderRow(rows, mustInclude){
+    for(let i=0;i<Math.min(rows.length,10);i++){
+      const lower = rows[i].map(c=>String(c).toLowerCase().trim());
+      if (mustInclude.some(k=>lower.some(c=>c.includes(k)))) {
+        const filled = lower.filter(c=>c).length;
+        if (filled >= 3) return i;
+      }
+    }
+    return -1;
+  }
+  function colIndex(header, patterns){
+    for (const p of patterns){
+      const i = header.findIndex(h=>p.test(h));
+      if (i !== -1) return i;
+    }
+    return -1;
+  }
+
+  function isStage5(stage){
+    if(!stage) return false;
+    const s = String(stage).trim();
+    const n = parseInt(s,10);
+    if(!isNaN(n) && /^\d/.test(s)) return n>=5;
+    if(/stage\s*5/i.test(s)) return true;
+    return /closed\s*won|deal\s*won|msa/i.test(s);
+  }
+
+  function parseDate(s){
+    if(!s) return 0;
+    const m = String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // M/D/YYYY from the import
+    if(m) return new Date(+m[3], +m[1]-1, +m[2]).getTime();
+    const t = Date.parse(s);
+    return isNaN(t) ? 0 : t;
+  }
+  function fmtDate(ts){
+    if(!ts) return "—";
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { day:"numeric", month:"short" });
+  }
+
+  // ---------- state ----------
+  let meetings = [];       // {ts, dateRaw, account, subject, person, isCsm, isEm, features[], recUrl, opp}
+  let opps = null;         // split opps tab (v2) — null = tab not available; else {header[], rows[][], map{}}
+  let solo = null;         // no-EM-split tab (v1) — same shape
+  let orgOpps = null;      // org-wide splits tab (all roles) — same shape
+  let orgMeetings = [];    // org-wide Grain meetings
+  let lastSync = 0;
+
+  function extractMeetings(rows){
+    const hi = findHeaderRow(rows, ["activity id","grain id","full comments"]);
+    if (hi === -1) return [];
+    const header = rows[hi].map(c=>String(c).toLowerCase().trim());
+    const cAcc = colIndex(header, [/company|account/]);
+    const cSub = colIndex(header, [/subject/]);
+    const cWho = colIndex(header, [/assigned|owner/]);
+    const cCom = colIndex(header, [/full comments|comments|summary/]);
+    const cDate = colIndex(header, [/^date$|date/]);
+    const cOpp = colIndex(header, [/opportunit/]);
+    const out = [];
+    for (const r of rows.slice(hi+1)){
+      if (!r || r.filter(c=>String(c).trim()).length < 2) continue;
+      const person = normalizeName(r[cWho]);
+      const comments = String(r[cCom]||"");
+      const rec = comments.match(/https:\/\/grain\.com\/share\/recording\/[^\s"',)]+/);
+      out.push({
+        ts: parseDate(r[cDate]),
+        account: String(r[cAcc]||"").trim(),
+        subject: String(r[cSub]||"").trim(),
+        person,
+        isCsm: CSMS.includes(person),
+        isEm: EMS.includes(person),
+        features: FEATURES.filter(f=>f.re.test(comments)).map(f=>f.label),
+        recUrl: rec ? rec[0] : "",
+        opp: String(cOpp>=0 ? (r[cOpp]||"") : "").trim(),
+      });
+    }
+    out.sort((a,b)=>b.ts-a.ts);
+    return out;
+  }
+
+  function extractOpps(rows){
+    const hi = findHeaderRow(rows, ["opportunit","stage","account","company"]);
+    if (hi === -1) return null;
+    const headerRaw = rows[hi].map(c=>String(c).trim());
+    const header = headerRaw.map(c=>c.toLowerCase());
+    const map = {
+      acc: colIndex(header, [/company|account/]),
+      name: colIndex(header, [/opportunity name|^opportunity$|opp name/, /opportunit/]),
+      stage: colIndex(header, [/stage/]),
+      owner: colIndex(header, [/opportunity owner|owner|created by/]),
+      user: colIndex(header, [/^user$/]),
+      role: colIndex(header, [/team member role|role/]),
+      product: colIndex(header, [/product/]),
+      created: colIndex(header, [/created date|date created/]),
+      closed: colIndex(header, [/close date|closed date/]),
+      amount: colIndex(header, [/^amount$|acv|tcv/, /amount|value/]),
+      total: colIndex(header, [/^total price$/]),
+      mcp: colIndex(header, [/^mcp$/]),
+    };
+    const dataRows = rows.slice(hi+1).filter(r=>r && r.filter(c=>String(c).trim()).length >= 2);
+    return { headerRaw, map, rows: dataRows };
+  }
+  function creditPerson(opps, r){
+    const u = opps.map.user>=0 ? String(r[opps.map.user]||"").trim() : "";
+    const o = opps.map.owner>=0 ? String(r[opps.map.owner]||"").trim() : "";
+    return normalizeName(u || o);
+  }
+
+  // Bayzat Studio product lines that count as Studio revenue
+  const STUDIO_PRODUCTS = [/custom\s*development/i, /bayzat\s*studio\s*-?\s*standard/i, /bayzat\s*studio\s*-?\s*advanced/i];
+  function isStudioProduct(p){ return STUDIO_PRODUCTS.some(re=>re.test(String(p||""))); }
+  // Deal-won product criterion: Bayzat Studio Standard or Advanced ONLY (Custom Development counts for revenue, not wins)
+  function isStudioPackage(p){ return /bayzat\s*studio\s*-?\s*(standard|advanced)/i.test(String(p||"")); }
+
+  // Page-side Studio guard: an opportunity only counts if it carries a Studio product,
+  // OR its MCP text mentions a Studio keyword, OR the opportunity name names a Studio feature.
+  const STUDIO_KEYWORDS = /bayzat\s*studio|\bstudio\b|\btickets?\b|service\s*desk|bayzat\s*apps?|\bapps?\b|custom\s*development|workflows?/i;
+  function isStudioOpp(src, r){
+    const m = src.map;
+    const prod = m.product>=0 ? String(r[m.product]||"") : "";
+    if (isStudioProduct(prod)) return true;
+    const mcp  = m.mcp>=0  ? String(r[m.mcp]||"")  : "";
+    if (STUDIO_KEYWORDS.test(mcp)) return true;
+    const name = m.name>=0 ? String(r[m.name]||"") : "";
+    return STUDIO_KEYWORDS.test(name);
+  }
+  // Split a parsed tab into qualifying rows + the rows the guard removed
+  function applyStudioGuard(src){
+    if (!src) return src;
+    const keep = [], dropped = [];
+    for (const r of src.rows){ (isStudioOpp(src, r) ? keep : dropped).push(r); }
+    return Object.assign({}, src, { rows: keep, dropped });
+  }
+  function rowAmount(opps, r){
+    const raw = String((opps.map.total>=0 && r[opps.map.total]) || (opps.map.amount>=0 && r[opps.map.amount]) || "").replace(/[^\d.]/g,"");
+    return raw ? parseFloat(raw) : 0;
+  }
+  // Current fiscal quarter window — adjust when the FQ definition is confirmed
+  const FQ = { start: new Date(2026,6,1).getTime(), end: new Date(2026,8,30,23,59,59).getTime(), label: "Q3 2026 (Jul–Sep)" };
+
+  // ---------- rendering ----------
+  function chip(name, isEm){
+    return `<span class="chip${isEm?" em":""}">${esc(name.split(" ")[0])}${isEm?" (EM)":""}</span>`;
+  }
+
+  function render(){
+    // pods
+    document.getElementById("podCards").innerHTML = PODS.map(p=>
+      `<div class="rule"><b>${esc(p.em.split(" ")[0])}’s pod (EM)</b><span>${p.csms.map(esc).join(" · ")}</span></div>`).join("");
+
+    // per-person opp stats — one opp can appear on several split rows, so
+    // totals dedupe by opportunity name while credit follows each row's User/Owner
+    const oppBy = {}; let oppTotal = 0, s5Total = 0;
+    const hasStage = !!(opps && opps.map.stage >= 0);
+    const seenOpp = new Set(), seenS5 = new Set();
+    if (opps){
+      for (const r of opps.rows){
+        const name = (opps.map.name>=0 ? String(r[opps.map.name]||"") : "").trim() || JSON.stringify(r).slice(0,60);
+        const who = creditPerson(opps, r);
+        const stage = hasStage ? r[opps.map.stage] : "";
+        if (!seenOpp.has(name)){ seenOpp.add(name); oppTotal++; }
+        oppBy[who] = oppBy[who] || { o:0, s5:0, oNames:[], s5Names:[] };
+        if (!oppBy[who].oNames.includes(name)){ oppBy[who].o++; oppBy[who].oNames.push(name); }
+        if (hasStage && isStage5(stage)) {
+          if (!oppBy[who].s5Names.includes(name)){ oppBy[who].s5++; oppBy[who].s5Names.push(name); }
+          if (!seenS5.has(name)){ seenS5.add(name); s5Total++; }
+        }
+      }
+    }
+    // snapshot of v2-only (EM split) stats — the Collaboration leaderboard uses this
+    const collabBy = JSON.parse(JSON.stringify(oppBy));
+    // fold in the solo (no-EM-split) tab — same opp may not appear in both, but dedupe anyway
+    // Deal-won criteria: opportunity at Stage 5 AND carrying a Bayzat Studio package
+    // (Standard or Advanced). Grouped per opportunity so multi-product opps count once.
+    const soloStage = !!(solo && solo.map.stage >= 0);
+    const soloBy = {};             // "Won Solo" credit per CSM
+    const soloPass = new Set();    // opp names meeting the deal-won criteria (feeds the No-EM table)
+    if (solo){
+      const soloGroups = {};
+      for (const r of solo.rows){
+        const name = (solo.map.name>=0 ? String(r[solo.map.name]||"") : "").trim() || JSON.stringify(r).slice(0,60);
+        const who = creditPerson(solo, r);
+        const prod = solo.map.product>=0 ? String(r[solo.map.product]||"").trim() : "";
+        soloGroups[name] = soloGroups[name] || { who, hasPkg:false, stage5:false };
+        if (isStudioPackage(prod)) soloGroups[name].hasPkg = true;
+        if (soloStage && isStage5(r[solo.map.stage])) soloGroups[name].stage5 = true;
+        if (!seenOpp.has(name)){ seenOpp.add(name); oppTotal++; }
+        oppBy[who] = oppBy[who] || { o:0, s5:0, oNames:[], s5Names:[] };
+        if (!oppBy[who].oNames.includes(name)){ oppBy[who].o++; oppBy[who].oNames.push(name); }
+      }
+      for (const [name, g] of Object.entries(soloGroups)){
+        if (!g.hasPkg) continue;                 // must carry Studio Standard or Advanced
+        if (soloStage && !g.stage5) continue;    // must be Stage 5 (enforced once Stage exists)
+        soloPass.add(name);
+        soloBy[g.who] = soloBy[g.who] || { n:0, names:[] };
+        soloBy[g.who].n++;
+        soloBy[g.who].names.push(name);
+      }
+    }
+
+    // KPIs
+    const csmMeetings = meetings.filter(m=>m.isCsm).length;
+    // Bayzat Studio revenue: sum of Studio product lines across both tabs, deduped per opp+product
+    let studioRev = 0;
+    const revLines = [];
+    {
+      const seenLine = new Set();
+      for (const src of [opps, solo]){
+        if (!src) continue;
+        for (const r of src.rows){
+          const prod = src.map.product>=0 ? String(r[src.map.product]||"").trim() : "";
+          if (!isStudioProduct(prod)) continue;
+          const name = (src.map.name>=0 ? String(r[src.map.name]||"") : "").trim();
+          const key = name + "|" + prod.toLowerCase();
+          if (seenLine.has(key)) continue;
+          seenLine.add(key);
+          const amt = rowAmount(src, r);
+          studioRev += amt;
+          revLines.push(name + " — " + prod + " (AED " + amt.toLocaleString() + ")");
+        }
+      }
+    }
+    const meetLabels = meetings.map(m=>(m.account||m.subject) + " — " + m.person.split(" ")[0]);
+    document.getElementById("kpiRev").innerHTML = (opps||solo) ? tipCell(studioRev.toLocaleString(), revLines, {head:"Studio product lines", left:true}) : "–";
+    document.getElementById("kpiOpps").innerHTML = opps ? tipCell(oppTotal, [...seenOpp], {head:"Opportunities", left:true}) : "–";
+    document.getElementById("kpiS5").innerHTML = (opps && hasStage) ? tipCell(s5Total, [...seenS5], {head:"Stage 5+ opportunities", left:true}) : "–";
+    document.getElementById("kpiMeet").innerHTML = tipCell(meetings.length, meetLabels, {head:"Meetings", left:true});
+    document.getElementById("kpiWon").textContent = (opps && hasStage) ? s5Total : "–";
+    document.getElementById("wonBar").style.width = Math.min(100, ((opps && hasStage) ? s5Total : 0)/5*100) + "%";
+
+    // CSM leaderboard
+    const per = {};
+    CSMS.forEach(c=>{ per[c] = { o:0, s5:0, g:0, oNames:[], s5Names:[], gNames:[] }; });
+    meetings.forEach(m=>{ if(per[m.person]){ per[m.person].g++; per[m.person].gNames.push(m.account||m.subject); } });
+    Object.entries(collabBy).forEach(([n,v])=>{ if(per[n]){ per[n].o=v.o; per[n].s5=v.s5; per[n].oNames=v.oNames||[]; per[n].s5Names=v.s5Names||[]; } });
+    document.querySelector("#leader tbody").innerHTML = Object.entries(per)
+      .sort((a,b)=>(b[1].s5-a[1].s5)||(b[1].o-a[1].o)||(b[1].g-a[1].g))
+      .map(([n,v],i)=>`<tr><td>${i===0&&v.s5>0?"🏆 ":""}${esc(n)}</td><td class="kw">${esc((podOf[n]||"—").split(" ")[0])}</td><td class="num">${opps?tipCell(v.o, v.oNames, {head:"Opps (EM split)"}):"–"}</td><td class="num"${v.s5>0?' style="font-weight:700;color:var(--purple)"':''}>${(opps&&hasStage)?tipCell(v.s5, v.s5Names, {head:"Stage 5+ opps"}):"–"}</td><td class="num">${tipCell(v.g, v.gNames, {head:"Grain meetings"})}</td></tr>`).join("");
+
+    // SPIFF leaderboard — CSMs only: opps created + deals won with/without EM split.
+    // Deal-won criteria: opportunity at Stage 5 AND carrying Bayzat Studio Standard or Advanced.
+    const spiff = {};
+    CSMS.forEach(c=>{ spiff[c] = { o:0, wonEm:0, wonEmNames:[] }; });
+    if (opps){
+      const m = opps.map;
+      const groups = {};
+      for (const r of opps.rows){
+        const name = (m.name>=0 ? String(r[m.name]||"") : "").trim();
+        groups[name] = groups[name] || { em:false, csms:new Set(), stage5:false, hasPkg:false };
+        const role = m.role>=0 ? String(r[m.role]||"") : "";
+        const person = creditPerson(opps, r);
+        if (/expansion/i.test(role) || EMS.includes(person)) groups[name].em = true;
+        if (CSMS.includes(person)) groups[name].csms.add(person);
+        if (hasStage && isStage5(r[m.stage])) groups[name].stage5 = true;
+        if (m.product>=0 && isStudioPackage(r[m.product])) groups[name].hasPkg = true;
+      }
+      for (const [gName, g] of Object.entries(groups)){
+        if (!g.stage5 || !g.hasPkg || !g.em) continue;
+        for (const c of g.csms){ spiff[c].wonEm++; spiff[c].wonEmNames.push(gName); }
+      }
+    }
+    CSMS.forEach(c=>{
+      spiff[c].solo = soloBy[c] ? soloBy[c].n : 0;
+      spiff[c].soloNames = soloBy[c] ? soloBy[c].names : [];
+      spiff[c].o = (oppBy[c]||{o:0}).o;
+      spiff[c].oNames = (oppBy[c]||{}).oNames || [];
+    });
+    document.querySelector("#spiffLeader tbody").innerHTML = Object.entries(spiff)
+      .sort((a,b)=>((b[1].solo+b[1].wonEm)-(a[1].solo+a[1].wonEm))||(b[1].o-a[1].o))
+      .map(([n,v],i)=>{
+        const winner = i===0 && (v.solo+v.wonEm)>0;
+        return `<tr><td>${winner?"🏆 ":""}${esc(n)}</td><td class="kw">${esc((podOf[n]||"—").split(" ")[0])}</td><td class="num">${(opps||solo)?tipCell(v.o, v.oNames, {head:"Opps created"}):"–"}</td><td class="num">${(opps&&hasStage)?tipCell(v.wonEm, v.wonEmNames, {head:"Won with EM split"}):"–"}</td><td class="num"${v.solo>0?' style="font-weight:700;color:var(--purple)"':''}>${solo?tipCell(v.solo, v.soloNames, {head:"Solo (no EM split)"}):"–"}</td></tr>`;
+      }).join("");
+    document.getElementById("spiffNote").innerHTML =
+      'CSMs only — opportunities created, and deals won with an EM split vs. solo (no EM split). <b>Deal won = opportunity at Stage 5 carrying Bayzat Studio Standard or Advanced.</b> The solo column comes from the “MCP with Bayzat studio_v1” report (CS-created this FQ, no EM split).' +
+      ((opps && !hasStage) ? ' <b>Stage isn’t in the Salesforce imports yet — until it is, the EM-split won column shows “–” and solo wins apply the product criterion alone.</b>' : '');
+
+    // feature leaderboard
+    const feat = {};
+    meetings.forEach(m=>{
+      m.features.forEach(f=>{
+        feat[f] = feat[f] || { count:0, by:{}, names:[] };
+        feat[f].count++;
+        feat[f].names.push((m.account||m.subject) + " — " + m.person.split(" ")[0]);
+        if (m.person) feat[f].by[m.person] = (feat[f].by[m.person]||0)+1;
+      });
+    });
+    const featBody = Object.entries(feat).sort((a,b)=>b[1].count-a[1].count).map(([f,v])=>{
+      const who = Object.entries(v.by).sort((a,b)=>b[1]-a[1])
+        .map(([n,c])=>`<span class="chip${EMS.includes(n)?" em":""}">${esc(n.split(" ")[0])}${EMS.includes(n)?" (EM)":""}${c>1?" ×"+c:""}</span>`).join(" ");
+      return `<tr><td><b>${esc(f)}</b></td><td class="num">${tipCell(v.count, v.names, {head:"Meetings mentioning it", left:true})}</td><td><div class="chips">${who}</div></td></tr>`;
+    }).join("");
+    document.querySelector("#featLeader tbody").innerHTML = featBody || `<tr><td colspan="3" class="empty">No meetings yet.</td></tr>`;
+
+    // opps table
+    const ot = document.getElementById("oppsTable");
+    if (!opps){
+      ot.querySelector("thead").innerHTML = "";
+      ot.querySelector("tbody").innerHTML = `<tr><td class="empty">The opportunities tab isn’t published to the web yet — in Google Sheets: File → Share → Publish to web → select “MCP with Bayzat Studio_v2” → CSV → Publish.</td></tr>`;
+    } else {
+      const m = opps.map;
+      const cols = [["acc","Account"],["name","Opportunity"],["product","Product"],["stage","Stage"],["amount","Amount (AED)"],["owner","Owner"],["user","Credited to"],["role","Role"],["created","Created"],["closed","Close date"]].filter(c=>m[c[0]]>=0);
+      ot.querySelector("thead").innerHTML = "<tr>" + cols.map(c=>`<th>${c[1]}</th>`).join("") + "</tr>";
+      ot.querySelector("tbody").innerHTML = opps.rows.map(r=>"<tr>"+cols.map(([k])=>{
+        let val = String(r[m[k]]||"").trim();
+        if (k==="owner"||k==="user") val = normalizeName(val);
+        if (k==="stage") return `<td><span class="stage ${isStage5(val)?"s-hot":"s-def"}">${esc(val||"—")}</span></td>`;
+        if (k==="amount" && val) val = Number(val.replace(/[^\d.]/g,"")).toLocaleString();
+        return `<td${(k==="acc"||k==="name")?' style="font-weight:600"':''}>${esc(val||"—")}</td>`;
+      }).join("")+"</tr>").join("") || `<tr><td colspan="${cols.length}" class="empty">No opportunities yet.</td></tr>`;
+      const droppedAll = [].concat(opps.dropped||[], (solo&&solo.dropped)||[]);
+      const droppedNames = [...new Set(droppedAll.map(r=>{
+        const src = (opps.dropped||[]).includes(r) ? opps : solo;
+        return src.map.name>=0 ? String(r[src.map.name]||"").trim() : "";
+      }).filter(Boolean))];
+      const guardText = 'Studio guard: an opportunity counts only if it carries a Studio product, mentions a Studio keyword in its MCP notes, or names a Studio feature.' +
+        (droppedNames.length ? ' Excluded from the import as non-Studio: ' + tipCell(droppedNames.length + " opp" + (droppedNames.length>1?"s":""), droppedNames, {head:"Excluded (no Studio signal)", left:true}) + '.' : '');
+      document.getElementById("oppsNote").innerHTML = (hasStage
+        ? 'Split opportunities appear once per credited team member; totals count each opportunity once. '
+        : 'Split opportunities appear once per credited team member; totals count each opportunity once. <b>Note: the v2 import has no Stage column yet — add “Stage” to the Salesforce report and the Stage 5 columns will populate automatically.</b> ')
+        + guardText;
+    }
+
+    // CSM-only opps (no EM split) — sourced directly from the v1 report tab
+    const net = document.getElementById("noEmTable");
+    const noteEl = document.getElementById("noEmNote");
+    if (!solo){
+      net.querySelector("tbody").innerHTML = `<tr><td colspan="6" class="empty">Waiting for the “MCP with Bayzat studio_v1” tab — publish it to the web as CSV to activate this table.</td></tr>`;
+    } else {
+      const m = solo.map;
+      const hasSoloStage = m.stage >= 0;
+      const out = solo.rows.filter(r=>{
+        const name = (m.name>=0 ? String(r[m.name]||"") : "").trim() || JSON.stringify(r).slice(0,60);
+        return soloPass.has(name);
+      }).map(r=>{
+        const person = creditPerson(solo, r);
+        const closeTs = m.closed>=0 ? parseDate(r[m.closed]) : 0;
+        return `<tr><td style="font-weight:600">${esc(m.name>=0?String(r[m.name]||"").trim():"—")}</td>` +
+          `<td>${esc(person)}</td>` +
+          `<td class="kw">${esc(m.acc>=0?String(r[m.acc]||"").trim():"—")}</td>` +
+          `<td class="kw">${esc(m.product>=0?String(r[m.product]||"").trim():"—")}</td>` +
+          `<td class="num">${rowAmount(solo,r).toLocaleString()}</td>` +
+          `<td class="kw" style="white-space:nowrap">${closeTs?fmtDate(closeTs):"—"}</td></tr>`;
+      });
+      net.querySelector("tbody").innerHTML = out.join("") ||
+        `<tr><td colspan="6" class="empty">No CSM-only deals meeting the won criteria (Stage 5 + Bayzat Studio Standard/Advanced) yet.</td></tr>`;
+      noteEl.innerHTML = `Source: the “MCP with Bayzat studio_v1” report — CS-created, no EM split. Deal won = opportunity at <b>Stage 5</b> carrying <b>Bayzat Studio Standard or Advanced</b>.` +
+        (hasSoloStage ? `` : ` <b>Stage isn’t in the import yet — until it is, the product criterion applies alone.</b>`);
+    }
+
+    // meetings table
+    document.querySelector("#meetTable tbody").innerHTML = meetings.map(m=>`<tr>
+      <td class="kw" style="white-space:nowrap">${fmtDate(m.ts)}</td>
+      <td style="font-weight:600">${esc(m.account||"—")}</td>
+      <td class="kw">${esc(m.subject)}</td>
+      <td>${chip(m.person, m.isEm)}</td>
+      <td><div class="chips">${m.features.map(f=>`<span class="chip" style="background:transparent;border:1px solid var(--line);color:var(--muted)">${esc(f)}</span>`).join("")}</div></td>
+      <td>${m.recUrl?`<a class="reclink" href="${esc(m.recUrl)}" target="_blank" rel="noopener">Recording ↗</a>`:""}</td>
+    </tr>`).join("") || `<tr><td colspan="6" class="empty">No meetings yet.</td></tr>`;
+
+    // ---- Sales Org tab: whole-organisation view, from the org-wide feeds ----
+    const roleOf = n => EMS.includes(n) ? "EM" : (CSMS.includes(n) ? "CS" : "New Business / Other");
+    const org = {};
+    const orgEntry = n => { if(!n) return null; org[n] = org[n] || { o:0, oNames:[], wonEm:0, wonEmNames:[], solo:0, soloNames:[], g:0, gNames:[] }; return org[n]; };
+    const orgStage = !!(orgOpps && orgOpps.map.stage >= 0);
+    if (orgOpps){
+      const m = orgOpps.map;
+      const groups = {};
+      for (const r of orgOpps.rows){
+        const name = (m.name>=0 ? String(r[m.name]||"") : "").trim();
+        const person = creditPerson(orgOpps, r);
+        const e = orgEntry(person);
+        if (e && !e.oNames.includes(name)){ e.o++; e.oNames.push(name); }
+        groups[name] = groups[name] || { em:false, people:new Set(), stage5:false, hasPkg:false };
+        const role = m.role>=0 ? String(r[m.role]||"") : "";
+        if (/expansion/i.test(role) || EMS.includes(person)) groups[name].em = true;
+        if (person) groups[name].people.add(person);
+        if (orgStage && isStage5(r[m.stage])) groups[name].stage5 = true;
+        if (m.product>=0 && isStudioPackage(r[m.product])) groups[name].hasPkg = true;
+      }
+      for (const [gName, g] of Object.entries(groups)){
+        if (!g.stage5 || !g.hasPkg) continue;
+        for (const p of g.people){
+          const e = orgEntry(p); if (!e) continue;
+          if (g.em){ e.wonEm++; e.wonEmNames.push(gName); }
+          else { e.solo++; e.soloNames.push(gName); }
+        }
+      }
+    }
+    orgMeetings.forEach(mm=>{ const e=orgEntry(mm.person); if(e){ e.g++; e.gNames.push(mm.account||mm.subject); } });
+    document.querySelector("#orgLeader tbody").innerHTML = Object.entries(org)
+      .sort((a,b)=>((b[1].solo+b[1].wonEm)-(a[1].solo+a[1].wonEm))||(b[1].o-a[1].o)||(b[1].g-a[1].g))
+      .map(([n,v],i)=>{
+        const winner = i===0 && (v.solo+v.wonEm)>0;
+        return `<tr><td>${winner?"🏆 ":""}${esc(n)}</td><td class="kw">${esc(roleOf(n))}</td><td class="num">${orgOpps?tipCell(v.o, v.oNames, {head:"Opps created"}):"–"}</td><td class="num">${(orgOpps&&orgStage)?tipCell(v.wonEm, v.wonEmNames, {head:"Won with EM split"}):"–"}</td><td class="num"${v.solo>0?' style="font-weight:700;color:var(--purple)"':''}>${(orgOpps&&orgStage)?tipCell(v.solo, v.soloNames, {head:"Won solo (no EM split)"}):"–"}</td><td class="num">${tipCell(v.g, v.gNames, {head:"Grain meetings"})}</td></tr>`;
+      }).join("") || `<tr><td colspan="6" class="empty">Waiting for the org-wide feeds — publish the org opportunity and meetings tabs to the web as CSV.</td></tr>`;
+
+    // org feature leaderboard — from the org-wide meetings feed
+    const orgFeat = {};
+    orgMeetings.forEach(mm=>{
+      mm.features.forEach(f=>{
+        orgFeat[f] = orgFeat[f] || { count:0, by:{}, names:[] };
+        orgFeat[f].count++;
+        orgFeat[f].names.push((mm.account||mm.subject) + " — " + mm.person.split(" ")[0]);
+        if (mm.person) orgFeat[f].by[mm.person] = (orgFeat[f].by[mm.person]||0)+1;
+      });
+    });
+    document.querySelector("#orgFeat tbody").innerHTML = Object.entries(orgFeat)
+      .sort((a,b)=>b[1].count-a[1].count)
+      .map(([f,v])=>{
+        const who = Object.entries(v.by).sort((a,b)=>b[1]-a[1])
+          .map(([n,c])=>`<span class="chip${EMS.includes(n)?" em":""}">${esc(n.split(" ")[0])}${EMS.includes(n)?" (EM)":""}${c>1?" ×"+c:""}</span>`).join(" ");
+        return `<tr><td><b>${esc(f)}</b></td><td class="num">${tipCell(v.count, v.names, {head:"Meetings mentioning it", left:true})}</td><td><div class="chips">${who}</div></td></tr>`;
+      }).join("") || `<tr><td colspan="3" class="empty">Waiting for the org-wide meetings feed.</td></tr>`;
+
+    // org opportunities table — from the org-wide splits feed
+    const oot = document.getElementById("orgOpps");
+    if (!orgOpps){
+      oot.querySelector("thead").innerHTML = "";
+      oot.querySelector("tbody").innerHTML = `<tr><td class="empty">Waiting for the org-wide opportunities tab — publish it to the web as CSV.</td></tr>`;
+    } else {
+      const m = orgOpps.map;
+      // one row per opportunity: collapse product lines and credited people
+      const byName = {};
+      for (const r of orgOpps.rows){
+        const name = (m.name>=0 ? String(r[m.name]||"") : "").trim() || "—";
+        const g = byName[name] = byName[name] || { products:new Set(), people:new Set(), stage:"", amount:"", owner:"" };
+        if (m.product>=0 && String(r[m.product]||"").trim()) g.products.add(String(r[m.product]).trim());
+        const p = creditPerson(orgOpps, r);
+        if (p) g.people.add(p);
+        if (!g.stage && m.stage>=0) g.stage = String(r[m.stage]||"").trim();
+        if (!g.amount && m.amount>=0) g.amount = String(r[m.amount]||"").trim();
+        if (!g.owner && m.owner>=0) g.owner = normalizeName(r[m.owner]);
+      }
+      oot.querySelector("thead").innerHTML = `<tr><th style="width:26%">Opportunity</th><th style="width:26%">Products</th><th style="width:14%">Stage</th><th style="text-align:right;width:12%">Amount (AED)</th><th style="width:22%">Credited to</th></tr>`;
+      oot.querySelector("tbody").innerHTML = Object.entries(byName).map(([name,g])=>{
+        const amt = g.amount ? Number(g.amount.replace(/[^\d.]/g,"")).toLocaleString() : "—";
+        const prods = [...g.products].map(p=>`<span class="chip" style="background:transparent;border:1px solid var(--line);color:${isStudioProduct(p)?"var(--purple)":"var(--muted)"}">${esc(p)}</span>`).join(" ");
+        const who = [...g.people].map(p=>esc(p)).join(", ") || esc(g.owner||"—");
+        return `<tr><td style="font-weight:600">${esc(name)}</td><td><div class="chips">${prods}</div></td><td><span class="stage ${isStage5(g.stage)?"s-hot":"s-def"}">${esc(g.stage||"—")}</span></td><td class="num">${amt}</td><td class="kw">${who}</td></tr>`;
+      }).join("") || `<tr><td colspan="5" class="empty">No opportunities yet.</td></tr>`;
+      const droppedNames = [...new Set((orgOpps.dropped||[]).map(r=>m.name>=0?String(r[m.name]||"").trim():"").filter(Boolean))];
+      document.getElementById("orgOppsNote").innerHTML =
+        'All roles, KSA &amp; UAE — one row per opportunity, with all its product lines (Studio products in purple). Studio guard: an opportunity counts only if it carries a Studio product, mentions a Studio keyword in its MCP notes, or names a Studio feature.' +
+        (droppedNames.length ? ' Excluded as non-Studio: ' + tipCell(droppedNames.length + " opp" + (droppedNames.length>1?"s":""), droppedNames, {head:"Excluded (no Studio signal)", left:true}) + '.' : '');
+    }
+
+    // org meetings table — from the org-wide meetings feed
+    document.querySelector("#orgMeet tbody").innerHTML = orgMeetings.map(mm=>`<tr>
+      <td class="kw" style="white-space:nowrap">${fmtDate(mm.ts)}</td>
+      <td style="font-weight:600">${esc(mm.account||"—")}</td>
+      <td class="kw">${esc(mm.subject)}</td>
+      <td>${chip(mm.person, mm.isEm)}</td>
+      <td><div class="chips">${mm.features.map(f=>`<span class="chip" style="background:transparent;border:1px solid var(--line);color:var(--muted)">${esc(f)}</span>`).join("")}</div></td>
+      <td>${mm.recUrl?`<a class="reclink" href="${esc(mm.recUrl)}" target="_blank" rel="noopener">Recording ↗</a>`:""}</td>
+    </tr>`).join("") || `<tr><td colspan="6" class="empty">Waiting for the org-wide meetings feed.</td></tr>`;
+  }
+
+  function setStatus(ok, msg){
+    const chipEl = document.getElementById("liveChip");
+    chipEl.textContent = ok ? "LIVE" : "OFFLINE";
+    chipEl.className = "livechip " + (ok ? "on" : "off");
+    const b = document.getElementById("banner");
+    if (msg){ b.textContent = msg; b.className = "banner show"; }
+    else { b.textContent = ""; b.className = "banner"; }
+  }
+
+  async function fetchCsv(url){
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const text = await res.text();
+    if (/^\s*<!DOCTYPE|<html/i.test(text)) throw new Error("not published");
+    return parseCSV(text);
+  }
+
+  async function refresh(){
+    let meetOk = false, oppWarn = "";
+    try {
+      const rows = await fetchCsv(MEET_URL);
+      meetings = extractMeetings(rows);
+      meetOk = true;
+    } catch(e) { /* keep last data */ }
+
+    try {
+      const rows = await fetchCsv(OPPS_URL);
+      opps = applyStudioGuard(extractOpps(rows));
+      if (!opps) oppWarn = "The opportunities tab was fetched but its columns weren’t recognised.";
+    } catch(e) {
+      if (!opps) oppWarn = "Opportunities tab not available yet — publish “MCP with Bayzat Studio_v2” to the web as CSV to activate it.";
+    }
+
+    try {
+      const rows = await fetchCsv(SOLO_URL);
+      solo = applyStudioGuard(extractOpps(rows));
+    } catch(e) { /* solo tab optional — keep last data */ }
+
+    try {
+      const rows = await fetchCsv(ORG_OPPS_URL);
+      orgOpps = applyStudioGuard(extractOpps(rows));
+    } catch(e) { /* org opps tab optional — keep last data */ }
+
+    try {
+      const rows = await fetchCsv(ORG_MEET_URL);
+      orgMeetings = extractMeetings(rows);
+    } catch(e) { /* org meetings tab optional — keep last data */ }
+
+    if (meetOk) {
+      lastSync = Date.now();
+      document.getElementById("updatedLine").textContent = "Last synced: " + new Date(lastSync).toLocaleString() + " · auto-refreshes every minute";
+      setStatus(true, oppWarn);
+    } else if (lastSync) {
+      setStatus(true, "Couldn’t reach the sheet just now — showing data from " + new Date(lastSync).toLocaleTimeString() + ". Will keep retrying.");
+    } else {
+      document.getElementById("updatedLine").textContent = "Unable to load data.";
+      setStatus(false, "Couldn’t load the published sheet. Check your internet connection, or that the sheet is still published to the web.");
+    }
+    render();
+  }
+
+  const TABS = { dash: ["tabDash","tabBtnDash"], org: ["tabOrg","tabBtnOrg"], summary: ["tabSummary","tabBtnSummary"] };
+  function showTab(which){
+    for (const [key, [secId, btnId]] of Object.entries(TABS)){
+      const on = key === which;
+      document.getElementById(secId).hidden = !on;
+      document.getElementById(btnId).classList.toggle("active", on);
+      document.getElementById(btnId).setAttribute("aria-selected", on);
+    }
+  }
+  document.getElementById("tabBtnDash").addEventListener("click", ()=>showTab("dash"));
+  document.getElementById("tabBtnOrg").addEventListener("click", ()=>showTab("org"));
+  document.getElementById("tabBtnSummary").addEventListener("click", ()=>showTab("summary"));
+
+  document.getElementById("refreshBtn").addEventListener("click", refresh);
+  render();
+  refresh();
+  setInterval(refresh, REFRESH_MS);
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) refresh(); });
+})();
+</script>
+</body>
+</html>
